@@ -5,3 +5,4 @@ class Student:
     myepitech_token: str = None
     intra_token: str = None
     last_sync: int = 0
+    student_label: str = None

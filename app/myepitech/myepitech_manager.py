@@ -1,5 +1,6 @@
 from datetime import datetime
 
+from app.logger import log_info
 from app.model.Student import Student
 from app.myepitech.myepitech_api import MyEpitechApi
 
@@ -92,6 +93,6 @@ class MyEpitechManager:
 
 
     def get_test_data(self, student, test: LatestTest):
-        print(f"Fetching data for test n°{test.last_id} ({test.project_slug}/{test.project_module}/{test.year})")
+        log_info(f"Fetching data for test n°{test.last_id} ({test.project_slug}/{test.project_module}/{test.year})")
         test_data = self.api.api_request(f"me/details/{test.last_id}", student)
         return test_data

@@ -2,6 +2,7 @@ import requests
 
 from app.config import INTRANET_LOGIN_URL, USER_AGENT
 from app.intranet.intranet_antiddos_bypass import IntranetAntiDDoSBypasser
+from app.logger import log_info, log_error
 from app.model.Student import Student
 
 
@@ -37,14 +38,9 @@ class IntranetApi:
         """
         Pass the anti-ddos page
         """
+        log_info("Trying to pass the anti-ddos page")
         self.antiddos_bypasser.regenerate_cookies()
-
-        # Test if the anti-ddos page is passed
-        cookies = self._build_cookies({})
-        test_resp = requests.get("https://intra.epitech.eu", headers=HEADERS, cookies=self._build_cookies())
-        if test_resp.status_code != 403 and "Epitech" not in test_resp.text:
-            raise Exception("Failed to pass the anti-ddos, post test not passed")
-        print("Anti-DDoS passed")
+        log_info("Anti-ddos page passed")
 
     def login(self, student, allow_retry=True):
         """
@@ -58,12 +54,10 @@ class IntranetApi:
         msoft_resp = requests.get(INTRANET_LOGIN_URL, cookies=self._build_cookies({
             "ESTSAUTHPERSISTENT": student.microsoft_session
         }), headers=HEADERS, allow_redirects=False)
-        # if msoft_resp.status_code == 503:
-        #     if not allow_retry:
-        #         raise Exception("Failed to pass the anti-ddos page")
-        #     self.pass_antiddos()
+
         if msoft_resp.status_code != 302:
-            raise Exception("Failed to create intranet session")
+            log_error(f"Invalid Microsoft session for the student: {student.student_label}")
+            raise Exception(f"Invalid Microsoft session for the student: {student.student_label}")
         # Get the "Location" response header
         location = msoft_resp.headers["Location"]
         intra_resp = requests.get(location, headers=HEADERS, cookies=self._build_cookies({}), allow_redirects=False)
@@ -72,7 +66,11 @@ class IntranetApi:
             if allow_retry:
                 self.pass_antiddos()
                 return self.login(student, allow_retry=False)
-            raise Exception("Failed to pass the anti-ddos page")
+            log_error("AntiDDoS already passed, but still got a 503 error")
+            raise Exception("AntiDDoS already passed, but still got a 503 error")
+        if not intra_resp.status_code == 204:
+            log_error(f"Failed to login to Intranet API for the student: {student.student_label}")
+            raise IntranetLoginError(f"Failed to login to Intranet API for the student: {student.student_label}")
         # Extract the token from the Set-Cookie header
         token = intra_resp.headers["Set-Cookie"].split("user=")[1].split(";")[0]
         student.intra_token = token
