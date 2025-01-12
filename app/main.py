@@ -26,7 +26,7 @@ class Main:
     def check_env(self):
         log_info("Loading environment variables")
         load_dotenv()
-        valid = False
+        valid = True
         if not os.getenv("TEKBETTER_API_URL"):
             log_error("Missing TEKBETTER_API_URL environment variable")
             valid = False
@@ -82,6 +82,7 @@ class Main:
             student_obj.microsoft_session = student["microsoft_session"]
             student_obj.tekbetter_token = student["tekbetter_token"]
             self.students.append(student_obj)
+        return True
 
     def sync_student(self, student):
         myepitech_data = self.myepitech.fetch_student(student, [])
