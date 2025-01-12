@@ -18,11 +18,11 @@ class MyEpitechManager:
 
     def fetch_student(self, student: Student, known_tests: [int]):
         current_year = datetime.now().year
-        years = [current_year - 1, current_year, current_year + 1]
+        years = [current_year - 2, current_year -1, current_year]
         new_tests = {}
         for year in years:
             all_projects = self.get_latest_from_year(student, year)
-            new_projects = [p for p in all_projects if str(p.last_id) not in known_tests]
+            new_projects = [p for p in all_projects if int(p.last_id) not in known_tests]
             for nproj in new_projects:
                 history = self.get_project_history(student, nproj.year, nproj.project_slug, nproj.project_module)
                 data = self.get_data_from_list(student=student, tests_obs=history, known_tests=known_tests)
