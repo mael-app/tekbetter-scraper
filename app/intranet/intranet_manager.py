@@ -45,3 +45,18 @@ class IntranetManager:
                 continue
             final.append(activity)
         return final
+
+    def fetch_project_slug(self, intra_project_json: dict, student: Student):
+        scolyear = intra_project_json['scolaryear']
+        codemodule = intra_project_json['codemodule']
+        codeinstance = intra_project_json['codeinstance']
+        codeacti = intra_project_json['codeacti']
+
+        url = f"module/{scolyear}/{codemodule}/{codeinstance}/{codeacti}/project/?format=json"
+
+        log_info(f"[INTRA] Fetching project slug for {codeacti}")
+        result =  self.api.api_request(url, student)
+
+        if not "slug" in result:
+            return None
+        return result["slug"]

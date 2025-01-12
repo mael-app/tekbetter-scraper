@@ -87,7 +87,7 @@ class Main:
         return True
 
     def sync_student(self, student):
-        res = requests.get(f"{os.getenv('TEKBETTER_API_URL')}/api/scraper/moulis", headers={
+        res = requests.get(f"{os.getenv('TEKBETTER_API_URL')}/api/scraper/infos", headers={
             "Authorization": f"Bearer {student.tekbetter_token}"
         })
 
@@ -95,24 +95,48 @@ class Main:
             log_error(f"Failed to fetch known tests for student: {student.student_label}")
             return
         known_tests = res.json()["known_tests"]
+        asked_slugs = res.json()["asked_slugs"]
 
         body = {
             "new_moulis": None,
             "intra_profile": None,
             "intra_planning": None,
-            "intra_projects": None
+            "intra_projects": None,
+            "projects_slugs": {},
         }
 
-        body["new_moulis"] = self.myepitech.fetch_student(student, known_tests=known_tests)
-
+        try:
+            body["new_moulis"] = self.myepitech.fetch_student(student, known_tests=known_tests)
+        except Exception as e:
+            log_error(f"Failed to fetch MyEpitech data for student: {student.student_label}")
+            log_error(str(e))
         start_date = datetime.now() - timedelta(days=365)
         end_date = datetime.now() + timedelta(days=365)
 
-        body["intra_profile"] = self.intranet.fetch_student(student)
-        body["intra_planning"] = self.intranet.fetch_planning(student, start_date, end_date)
-        body["intra_projects"] = self.intranet.fetch_projects(student, start_date, end_date)
+        try:
+            body["intra_profile"] = self.intranet.fetch_student(student)
+        except Exception as e:
+            log_error(f"Failed to fetch Intranet data for student: {student.student_label}")
+            log_error(str(e))
+        try:
+            body["intra_planning"] = self.intranet.fetch_planning(student, start_date, end_date)
+        except Exception as e:
+            log_error(f"Failed to fetch Intranet planning for student: {student.student_label}")
+            log_error(str(e))
+        try:
+            body["intra_projects"] = self.intranet.fetch_projects(student, start_date, end_date)
+        except Exception as e:
+            log_error(f"Failed to fetch Intranet projects for student: {student.student_label}")
+            log_error(str(e))
 
-
+        try:
+            for proj in body["intra_projects"]:
+                if proj["codeacti"] in asked_slugs:
+                    slug = self.intranet.fetch_project_slug(proj, student)
+                    body["projects_slugs"][proj["codeacti"]] = slug
+        except Exception as e:
+            log_error(f"Failed to fetch Intranet project slugs for student: {student.student_label}")
+            log_error(str(e))
         log_info(f"Pushing data for student: {student.student_label}")
 
         res = requests.post(f"{os.getenv('TEKBETTER_API_URL')}/api/scraper/push", json=body, headers={
