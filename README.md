@@ -29,6 +29,6 @@ The scraper will scrape the following data:
 The following environment variables are required:
 
 - `TEKBETTER_API_URL`: The URL of the TekBetter API
-- `TEKBETTER_API_TOKEN`: The token to authenticate to the TekBetter API, only for the `Public mode`
+- `PUBLIC_SCRAPER_TOKEN`: The token to authenticate to the TekBetter API, only for the `Public mode`
 - `SCRAPER_MODE`: The mode of the scraper, either `private` or `public`
 - `SCRAPER_CONFIG_FILE`: The path to the configuration file, only for the `Private mode`

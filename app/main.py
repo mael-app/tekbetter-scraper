@@ -35,8 +35,8 @@ class Main:
             valid = False
         if not os.getenv("SCRAPER_MODE"):
             log_warning("Missing SCRAPER_MODE environment variable. Using default value 'private'")
-        if  os.getenv("SCRAPER_MODE") == "public" and not os.getenv("TEKBETTER_API_KEY"):
-            log_error("Missing TEKBETTER_API_KEY environment variable")
+        if  os.getenv("SCRAPER_MODE") == "public" and not os.getenv("PUBLIC_SCRAPER_TOKEN"):
+            log_error("Missing PUBLIC_SCRAPER_TOKEN environment variable")
             valid = False
         if not os.getenv("SCRAPER_CONFIG_FILE"):
             log_error("Missing SCRAPER_CONFIG_FILE environment variable")
@@ -70,7 +70,7 @@ class Main:
                 json_data = {}
         else:
             res = requests.get(f"{os.getenv('TEKBETTER_API_URL')}/api/scraper/config", headers={
-                "Authorization": f"Bearer {os.getenv('TEKBETTER_API_TOKEN')}"
+                "Authorization": f"Bearer {os.getenv('PUBLIC_SCRAPER_TOKEN')}"
             })
             if res.status_code != 200:
                 log_error("Failed to fetch config from TekBetter API")
@@ -86,9 +86,6 @@ class Main:
                 student["microsoft_session"] = ""
             if not "tekbetter_token" in student:
                 student["tekbetter_token"] = ""
-        # Save the config
-        with open(path, "w") as f:
-            f.write(json.dumps(json_data, indent=4))
 
         self.student_interval = json_data["student_interval"]
 
@@ -103,7 +100,7 @@ class Main:
         for student in self.students:
             if len([s for s in json_data["students"] if s["tekbetter_token"] == student.tekbetter_token]) == 0:
                 self.students.remove(student)
-        log_info("Config reload successful")
+        log_info("Config reload successful: " + str(len(self.students)) + " students loaded")
         return True
 
     def sync_student(self, student):
