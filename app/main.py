@@ -1,5 +1,6 @@
 import json
 import os
+from datetime import datetime, timedelta
 
 import requests
 from dotenv import load_dotenv
@@ -95,12 +96,26 @@ class Main:
             return
         known_tests = res.json()["known_tests"]
 
-        myepitech_data = self.myepitech.fetch_student(student, known_tests=known_tests)
-        intra_profile = self.intranet.fetch_student(student)
-        res = requests.post(f"{os.getenv('TEKBETTER_API_URL')}/api/scraper/push", json={
-            "new_moulis": myepitech_data,
-            "intra_profile": intra_profile
-        }, headers={
+        body = {
+            "new_moulis": None,
+            "intra_profile": None,
+            "intra_planning": None,
+            "intra_projects": None
+        }
+
+        body["new_moulis"] = self.myepitech.fetch_student(student, known_tests=known_tests)
+
+        start_date = datetime.now() - timedelta(days=365)
+        end_date = datetime.now() + timedelta(days=365)
+
+        body["intra_profile"] = self.intranet.fetch_student(student)
+        body["intra_planning"] = self.intranet.fetch_planning(student, start_date, end_date)
+        body["intra_projects"] = self.intranet.fetch_projects(student, start_date, end_date)
+
+
+        log_info(f"Pushing data for student: {student.student_label}")
+
+        res = requests.post(f"{os.getenv('TEKBETTER_API_URL')}/api/scraper/push", json=body, headers={
             "Authorization": f"Bearer {student.tekbetter_token}"
         })
 

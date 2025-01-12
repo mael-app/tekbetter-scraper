@@ -17,6 +17,7 @@ class MyEpitechManager:
 
 
     def fetch_student(self, student: Student, known_tests: [int]):
+        log_info(f"[MYEPITECH] Fetching student profile {student.student_label}")
         current_year = datetime.now().year
         years = [current_year - 2, current_year -1, current_year]
         new_tests = {}
