@@ -1,6 +1,7 @@
 import json
 import os
 
+import requests
 from dotenv import load_dotenv
 
 from app.intranet.intranet_api import IntranetApi
@@ -85,7 +86,28 @@ class Main:
         return True
 
     def sync_student(self, student):
-        myepitech_data = self.myepitech.fetch_student(student, [])
+        res = requests.get(f"{os.getenv('TEKBETTER_API_URL')}/api/scraper/moulis", headers={
+            "Authorization": f"Bearer {student.tekbetter_token}"
+        })
+
+        if res.status_code != 200:
+            log_error(f"Failed to fetch known tests for student: {student.student_label}")
+            return
+        known_tests = res.json()["known_tests"]
+
+        myepitech_data = self.myepitech.fetch_student(student, known_tests=known_tests)
+
+        res = requests.post(f"{os.getenv('TEKBETTER_API_URL')}/api/scraper/push", json={
+            "new_moulis": myepitech_data
+        }, headers={
+            "Authorization": f"Bearer {student.tekbetter_token}"
+        })
+
+        if res.status_code != 200:
+            log_error(f"Failed to push data for student: {student.student_label}")
+            return
+        log_info(f"Data pushed for student: {student.student_label}")
 
 if __name__ == "__main__":
     main = Main()
+    main.sync_student(student=main.students[0])
