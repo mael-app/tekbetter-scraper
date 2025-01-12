@@ -96,9 +96,10 @@ class Main:
         known_tests = res.json()["known_tests"]
 
         myepitech_data = self.myepitech.fetch_student(student, known_tests=known_tests)
-
+        intra_profile = self.intranet.fetch_student(student)
         res = requests.post(f"{os.getenv('TEKBETTER_API_URL')}/api/scraper/push", json={
-            "new_moulis": myepitech_data
+            "new_moulis": myepitech_data,
+            "intra_profile": intra_profile
         }, headers={
             "Authorization": f"Bearer {student.tekbetter_token}"
         })
