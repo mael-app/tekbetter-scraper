@@ -68,7 +68,7 @@ class IntranetApi:
                 return self.login(student, allow_retry=False)
             log_error("AntiDDoS already passed, but still got a 503 error")
             raise Exception("AntiDDoS already passed, but still got a 503 error")
-        if not intra_resp.status_code == 204:
+        if intra_resp.status_code not in [204, 302]:
             log_error(f"Failed to login to Intranet API for the student: {student.student_label}")
             raise IntranetLoginError(f"Failed to login to Intranet API for the student: {student.student_label}")
         # Extract the token from the Set-Cookie header
