@@ -50,6 +50,7 @@ class IntranetApi:
         :return: string token if the session is created
         """
 
+        log_info("[INTRA] Logging in the intranet of user " + student.student_label)
         # Microsoft request
         msoft_resp = requests.get(INTRANET_LOGIN_URL, cookies=self._build_cookies({
             "ESTSAUTHPERSISTENT": student.microsoft_session
@@ -76,18 +77,18 @@ class IntranetApi:
         student.intra_token = token
         return token
 
-    def api_request(self, url, student_obj: Student, allow_retry=True):
+    def api_request(self, url, student_obj: Student, allow_retry=True, timeout=60):
         if student_obj.intra_token is None:
             self.login(student_obj)
         res = requests.get(f"https://intra.epitech.eu/{url}", headers=HEADERS, cookies=self._build_cookies({
             "user": student_obj.intra_token
-        }))
+        }), timeout=timeout)
         if res.status_code == 200:
             return res.json()
         if res.status_code == 503:
             if allow_retry:
                 self.pass_antiddos()
-                return self.api_request(url, student_obj, allow_retry=False)
+                return self.api_request(url, student_obj, allow_retry=False, timeout=timeout)
             raise Exception("Failed to pass the anti-ddos page")
 
         if res.status_code == 403:

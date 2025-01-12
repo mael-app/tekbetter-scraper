@@ -1,11 +1,11 @@
 import json
 import os
+import threading
+import time
+import traceback
 from datetime import datetime, timedelta
-
 import requests
 from dotenv import load_dotenv
-
-from app.intranet.intranet_api import IntranetApi
 from app.intranet.intranet_manager import IntranetManager
 from app.logger import log_info, log_error, log_warning
 from app.model.Student import Student
@@ -15,6 +15,7 @@ class Main:
     def __init__(self):
         log_info("Welcome to the TekBetter scraper")
         self.students = []
+        self.threads = []
         self.student_interval = 0
 
         self.myepitech = MyEpitechManager()
@@ -53,17 +54,28 @@ class Main:
         return valid
 
     def load_config(self):
-        path = os.getenv("SCRAPER_CONFIG_FILE")
-        file_content = open(path, "r").read()
+
         json_data = {}
-        if file_content:
-            try:
-                json_data = json.loads(file_content)
-            except:
-                log_error("Config file is not a valid JSON file")
-                return False
+
+        if os.getenv("SCRAPER_MODE") == "private":
+            path = os.getenv("SCRAPER_CONFIG_FILE")
+            file_content = open(path, "r").read()
+            if file_content:
+                try:
+                    json_data = json.loads(file_content)
+                except:
+                    log_error("Config file is not a valid JSON file")
+                    return False
+            else:
+                json_data = {}
         else:
-            json_data = {}
+            res = requests.get(f"{os.getenv('TEKBETTER_API_URL')}/api/scraper/config", headers={
+                "Authorization": f"Bearer {os.getenv('TEKBETTER_API_TOKEN')}"
+            })
+            if res.status_code != 200:
+                log_error("Failed to fetch config from TekBetter API")
+                return False
+            json_data = res.json()
         # Create config keys if they don't exist
         if not "student_interval" in json_data:
             json_data["student_interval"] = 60
@@ -79,11 +91,19 @@ class Main:
             f.write(json.dumps(json_data, indent=4))
 
         self.student_interval = json_data["student_interval"]
+
         for student in json_data["students"]:
-            student_obj = Student()
+            student_obj = Student() if len([s for s in self.students if s.tekbetter_token == student["tekbetter_token"]]) == 0 else [s for s in self.students if s.tekbetter_token == student["tekbetter_token"]][0]
             student_obj.microsoft_session = student["microsoft_session"]
             student_obj.tekbetter_token = student["tekbetter_token"]
+            if "." in student_obj.tekbetter_token and "_" in student_obj.tekbetter_token:
+                student_obj.student_label = student_obj.tekbetter_token.split("_")[0]
             self.students.append(student_obj)
+        # Remove students that are not in the config anymore
+        for student in self.students:
+            if len([s for s in json_data["students"] if s["tekbetter_token"] == student.tekbetter_token]) == 0:
+                self.students.remove(student)
+        log_info("Config reload successful")
         return True
 
     def sync_student(self, student):
@@ -109,7 +129,7 @@ class Main:
             body["new_moulis"] = self.myepitech.fetch_student(student, known_tests=known_tests)
         except Exception as e:
             log_error(f"Failed to fetch MyEpitech data for student: {student.student_label}")
-            log_error(str(e))
+            traceback.print_exc()
         start_date = datetime.now() - timedelta(days=365)
         end_date = datetime.now() + timedelta(days=365)
 
@@ -117,26 +137,27 @@ class Main:
             body["intra_profile"] = self.intranet.fetch_student(student)
         except Exception as e:
             log_error(f"Failed to fetch Intranet data for student: {student.student_label}")
-            log_error(str(e))
+            traceback.print_exc()
         try:
             body["intra_planning"] = self.intranet.fetch_planning(student, start_date, end_date)
         except Exception as e:
             log_error(f"Failed to fetch Intranet planning for student: {student.student_label}")
-            log_error(str(e))
+            traceback.print_exc()
         try:
             body["intra_projects"] = self.intranet.fetch_projects(student, start_date, end_date)
         except Exception as e:
             log_error(f"Failed to fetch Intranet projects for student: {student.student_label}")
-            log_error(str(e))
+            traceback.print_exc()
 
-        try:
-            for proj in body["intra_projects"]:
-                if proj["codeacti"] in asked_slugs:
-                    slug = self.intranet.fetch_project_slug(proj, student)
-                    body["projects_slugs"][proj["codeacti"]] = slug
-        except Exception as e:
-            log_error(f"Failed to fetch Intranet project slugs for student: {student.student_label}")
-            log_error(str(e))
+        if body["intra_projects"]:
+            try:
+                for proj in body["intra_projects"]:
+                    if proj["codeacti"] in asked_slugs:
+                        slug = self.intranet.fetch_project_slug(proj, student)
+                        body["projects_slugs"][proj["codeacti"]] = slug
+            except Exception as e:
+                log_error(f"Failed to fetch Intranet project slugs for student: {student.student_label}")
+                traceback.print_exc()
         log_info(f"Pushing data for student: {student.student_label}")
 
         res = requests.post(f"{os.getenv('TEKBETTER_API_URL')}/api/scraper/push", json=body, headers={
@@ -148,6 +169,45 @@ class Main:
             return
         log_info(f"Data pushed for student: {student.student_label}")
 
+    def sync_passage(self):
+        for student in self.students:
+            if student.locked:
+                continue
+            if student.last_sync + self.student_interval < datetime.now().timestamp():
+                student.locked = True
+                try:
+                    self.sync_student(student)
+                    student.last_sync = datetime.now().timestamp()
+                except Exception as e:
+                    log_error(f"Failed to sync student: {student.student_label}")
+                    log_error(str(e))
+                student.locked = False
+
+
 if __name__ == "__main__":
+
     main = Main()
-    main.sync_student(student=main.students[0])
+    last_config_update = datetime.now()
+
+    try:
+        while True:
+            try:
+                time.sleep(5)
+                main.sync_passage()
+                # t = threading.Thread(target=main.sync_passage)
+                # t.start()
+                # main.threads.append(t)
+
+                if last_config_update + timedelta(minutes=5) < datetime.now():
+                    last_config_update = datetime.now()
+                    main.load_config()
+            except Exception as e:
+                log_error("An error occured in the main loop")
+                log_error(str(e))
+                time.sleep(60)
+                continue
+    except KeyboardInterrupt:
+        log_error("Received keyboard interrupt, exiting.")
+        for t in main.threads:
+            t.join()
+        exit(0)
