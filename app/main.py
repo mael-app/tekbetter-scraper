@@ -46,8 +46,15 @@ class Main:
         except Exception as e:
             log_error(f"Failed to fetch MyEpitech data for student: {student.student_label}")
             traceback.print_exc()
+
         start_date = datetime.now() - timedelta(days=365*3)
         end_date = datetime.now() + timedelta(days=365)
+
+        if "fetch_start" in res.json():
+            start_date = datetime.strptime(res.json()["fetch_start"], "%Y-%m-%d")
+        if "fetch_end" in res.json():
+            end_date = datetime.strptime(res.json()["fetch_end"], "%Y-%m-%d")
+
 
         try:
             body["intra_profile"] = self.intranet.fetch_student(student)
