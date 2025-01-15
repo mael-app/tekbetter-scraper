@@ -4,6 +4,7 @@ from app.intranet.intranet_api import IntranetApi
 from app.logger import log_info
 from app.model.Student import Student
 from app.myepitech.myepitech_api import MyEpitechApi
+from app.tools.date_spliter import split_dates
 
 
 class IntranetManager:
@@ -20,14 +21,20 @@ class IntranetManager:
         end_str = end_date.strftime("%Y-%m-%d")
 
         final = []
-        res =  self.api.api_request(f"planning/load?start={start_str}&end={end_str}&format=json", student)
 
-        for event in res:
-            if "calendar_type" in event and event["calendar_type"] == "perso":
-                continue
-            if not event['event_registered'] in ['present', 'registered'] and (event['rdv_indiv_registered'] is None and event['rdv_group_registered'] is None):
-                continue # Skip events without registered students
-            final.append(event)
+        dates = split_dates(start_str, end_str, 70)
+
+        for (s_start, s_end )in dates:
+            log_info(f"[INTRA] Fetching student planning for {student.student_label} from {s_start} to {s_end}")
+            res =  self.api.api_request(f"planning/load?start={s_start}&end={s_end}&format=json", student)
+
+            for event in res:
+                if "calendar_type" in event and event["calendar_type"] == "perso":
+                    continue
+                if not event['event_registered'] in ['present', 'registered'] and (event['rdv_indiv_registered'] is None and event['rdv_group_registered'] is None):
+                    continue # Skip events without registered students
+                final.append(event)
+        # Remove duplicates
         return final
 
     def fetch_projects(self, student: Student, start_date: datetime, end_date: datetime):
@@ -36,14 +43,19 @@ class IntranetManager:
         end_str = end_date.strftime("%Y-%m-%d")
 
         final = []
-        res = self.api.api_request(f"module/board/?start={start_str}&end={end_str}&format=json", student)
 
-        for activity in res:
-            if not activity['registered']:
-                continue
-            if not activity['type_acti_code'] == "proj":
-                continue
-            final.append(activity)
+        dates = split_dates(start_str, end_str, 70)
+
+        for (s_start, s_end )in dates:
+            log_info(f"[INTRA] Fetching student projects for {student.student_label} from {s_start} to {s_end}")
+            res = self.api.api_request(f"module/board/?start={s_start}&end={s_end}&format=json", student)
+
+            for activity in res:
+                if not activity['registered']:
+                    continue
+                if activity['type_acti_code'] not in ["proj", "tp"]:
+                    continue
+                final.append(activity)
         return final
 
     def fetch_project_slug(self, intra_project_json: dict, student: Student):

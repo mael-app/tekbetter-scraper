@@ -1,15 +1,13 @@
-import json
 import os
-import threading
 import time
 import traceback
 from datetime import datetime, timedelta
 import requests
-from dotenv import load_dotenv
 from app.intranet.intranet_manager import IntranetManager
 from app.logger import log_info, log_error, log_warning
-from app.model.Student import Student
 from app.myepitech.myepitech_manager import MyEpitechManager
+from app.tools.config_loader import load_configuration
+from app.tools.env_loader import check_env_variables
 
 class Main:
     def __init__(self):
@@ -21,87 +19,8 @@ class Main:
         self.myepitech = MyEpitechManager()
         self.intranet = IntranetManager()
 
-        if not self.check_env():
+        if not check_env_variables() or not load_configuration(self):
             exit(1)
-        if not self.load_config():
-            exit(1)
-
-    def check_env(self):
-        log_info("Loading environment variables")
-        load_dotenv()
-        valid = True
-        if not os.getenv("TEKBETTER_API_URL"):
-            log_error("Missing TEKBETTER_API_URL environment variable")
-            valid = False
-        if not os.getenv("SCRAPER_MODE"):
-            log_warning("Missing SCRAPER_MODE environment variable. Using default value 'private'")
-        if  os.getenv("SCRAPER_MODE") == "public" and not os.getenv("PUBLIC_SCRAPER_TOKEN"):
-            log_error("Missing PUBLIC_SCRAPER_TOKEN environment variable")
-            valid = False
-        if not os.getenv("SCRAPER_CONFIG_FILE"):
-            log_error("Missing SCRAPER_CONFIG_FILE environment variable")
-            valid = False
-        else:
-            if not os.path.exists(os.getenv("SCRAPER_CONFIG_FILE")):
-                log_error("Invalid SCRAPER_CONFIG_FILE path")
-                valid = False
-            if not os.access(os.getenv("SCRAPER_CONFIG_FILE"), os.R_OK):
-                log_error(f"{os.getenv('SCRAPER_CONFIG_FILE')} is not readable")
-                valid = False
-            if not os.access(os.getenv("SCRAPER_CONFIG_FILE"), os.W_OK):
-                log_error(f"{os.getenv('SCRAPER_CONFIG_FILE')} is not writable")
-                valid = False
-        return valid
-
-    def load_config(self):
-
-        json_data = {}
-
-        if os.getenv("SCRAPER_MODE") == "private":
-            path = os.getenv("SCRAPER_CONFIG_FILE")
-            file_content = open(path, "r").read()
-            if file_content:
-                try:
-                    json_data = json.loads(file_content)
-                except:
-                    log_error("Config file is not a valid JSON file")
-                    return False
-            else:
-                json_data = {}
-        else:
-            res = requests.get(f"{os.getenv('TEKBETTER_API_URL')}/api/scraper/config", headers={
-                "Authorization": f"Bearer {os.getenv('PUBLIC_SCRAPER_TOKEN')}"
-            })
-            if res.status_code != 200:
-                log_error("Failed to fetch config from TekBetter API")
-                return False
-            json_data = res.json()
-        # Create config keys if they don't exist
-        if not "student_interval" in json_data:
-            json_data["student_interval"] = 60
-        if not "students" in json_data:
-            json_data["students"] = []
-        for student in json_data["students"]:
-            if not "microsoft_session" in student:
-                student["microsoft_session"] = ""
-            if not "tekbetter_token" in student:
-                student["tekbetter_token"] = ""
-
-        self.student_interval = json_data["student_interval"]
-
-        for student in json_data["students"]:
-            student_obj = Student() if len([s for s in self.students if s.tekbetter_token == student["tekbetter_token"]]) == 0 else [s for s in self.students if s.tekbetter_token == student["tekbetter_token"]][0]
-            student_obj.microsoft_session = student["microsoft_session"]
-            student_obj.tekbetter_token = student["tekbetter_token"]
-            if "." in student_obj.tekbetter_token and "_" in student_obj.tekbetter_token:
-                student_obj.student_label = student_obj.tekbetter_token.split("_")[0]
-            self.students.append(student_obj)
-        # Remove students that are not in the config anymore
-        for student in self.students:
-            if len([s for s in json_data["students"] if s["tekbetter_token"] == student.tekbetter_token]) == 0:
-                self.students.remove(student)
-        log_info("Config reload successful: " + str(len(self.students)) + " students loaded")
-        return True
 
     def sync_student(self, student):
         res = requests.get(f"{os.getenv('TEKBETTER_API_URL')}/api/scraper/infos", headers={
@@ -127,7 +46,7 @@ class Main:
         except Exception as e:
             log_error(f"Failed to fetch MyEpitech data for student: {student.student_label}")
             traceback.print_exc()
-        start_date = datetime.now() - timedelta(days=365)
+        start_date = datetime.now() - timedelta(days=365*3)
         end_date = datetime.now() + timedelta(days=365)
 
         try:
@@ -146,6 +65,7 @@ class Main:
             log_error(f"Failed to fetch Intranet projects for student: {student.student_label}")
             traceback.print_exc()
 
+        # Fetch project slugs for the asked projects
         if body["intra_projects"]:
             try:
                 for proj in body["intra_projects"]:
@@ -168,36 +88,30 @@ class Main:
 
     def sync_passage(self):
         for student in self.students:
-            if student.locked:
-                continue
             if student.last_sync + self.student_interval < datetime.now().timestamp():
-                student.locked = True
                 try:
                     self.sync_student(student)
                     student.last_sync = datetime.now().timestamp()
                 except Exception as e:
                     log_error(f"Failed to sync student: {student.student_label}")
                     log_error(str(e))
-                student.locked = False
 
 
 if __name__ == "__main__":
 
     main = Main()
     last_config_update = datetime.now()
+    CONFIG_RELOAD_INTERVAL = 2
 
     try:
         while True:
             try:
                 time.sleep(5)
                 main.sync_passage()
-                # t = threading.Thread(target=main.sync_passage)
-                # t.start()
-                # main.threads.append(t)
 
-                if last_config_update + timedelta(minutes=5) < datetime.now():
+                if last_config_update + timedelta(minutes=CONFIG_RELOAD_INTERVAL) < datetime.now():
                     last_config_update = datetime.now()
-                    main.load_config()
+                    load_configuration(main)
             except Exception as e:
                 log_error("An error occured in the main loop")
                 log_error(str(e))
