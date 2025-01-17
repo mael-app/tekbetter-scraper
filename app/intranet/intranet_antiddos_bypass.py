@@ -4,8 +4,19 @@ import traceback
 import execjs
 import base64
 import requests
-
+import urllib.parse
 from app.config import USER_AGENT
+
+def decode_js_content(encoded_str):
+    # Équivalent Python de decodeURIComponent(escape(...))
+    try:
+        # Escape avec .encode('latin1') pour simuler le comportement de escape
+        # Puis décodage avec urllib.parse.unquote
+        escaped_str = encoded_str.encode('latin1').decode('unicode_escape')
+        decoded_str = urllib.parse.unquote(escaped_str)
+        return decoded_str
+    except Exception as e:
+        return f"Erreur lors du décodage : {e}"
 
 
 class IntranetAntiDDoSBypasser:
@@ -24,8 +35,8 @@ class IntranetAntiDDoSBypasser:
                 self.saved_cookies = cookies
                 return cookies
             except Exception as e:
-                pass
-        raise Exception("Failed to regenerate cookies")
+                print(e)
+        raise Exception("Failed to regenerate anti-ddos cookies")
 
     def try_pass(self):
         self.cookies = {}
@@ -35,12 +46,18 @@ class IntranetAntiDDoSBypasser:
         resp = requests.get("https://intra.epitech.eu/", headers=self.headers)
         self.extract_cookies_from_response(resp)
 
+        js_puzzle = None
         # Check if the response contains the javascript puzzle
-        if not "eval(decodeURIComponent(escape(window.atob(" in resp.text:
+        if "eval(decodeURIComponent(escape(window.atob(" in resp.text:
+            # Extract the JS code from the HTML page (decode the base64 string)
+            js_puzzle = base64.b64decode(resp.text.split("eval(decodeURIComponent(escape(window.atob('")[1].split("'))))")[0]).decode("utf-8")
+        elif "eval(decodeURIComponent(escape" in resp.text:
+            # Extract the JS code from the HTML page
+            js_puzzle = decode_js_content(resp.text.split("eval(decodeURIComponent(escape('")[1].split("'))")[0])
+
+        if js_puzzle is None:
             raise Exception("Failed to extract the javascript puzzle")
 
-        # Extract the JS code from the HTML page (decode the base64 string)
-        js_puzzle = base64.b64decode(resp.text.split("eval(decodeURIComponent(escape(window.atob('")[1].split("'))))")[0]).decode("utf-8")
 
         # What is secret header ?
         # It's a header needed for the 2nd request, it's value is calculated with a random-variable-name.

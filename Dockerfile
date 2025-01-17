@@ -17,6 +17,12 @@ RUN pip install --no-cache-dir --user -r requirements.txt
 # Stage 2: Runtime image
 FROM python:3.11-slim-bookworm
 
+# Install runtime dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+        nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
 # OCI labels
 LABEL org.opencontainers.image.title="TekBetter Scraper" \
       org.opencontainers.image.description="TekBetter Scraping Service" \
