@@ -21,25 +21,27 @@ HEADERS = {
 
 class IntranetApi:
     def __init__(self):
-        self.antiddos_bypasser = IntranetAntiDDoSBypasser()
+        pass
 
-    def _build_cookies(self, cookies: dict = {}):
+    def _build_cookies(self, cookies: dict, student: Student):
         """
         Build the cookies dict for the antiddos page
         :param cookies: List of cookies tuples
         :return: dict
         """
-        cookies_dict = self.antiddos_bypasser.saved_cookies
+        if cookies is None:
+            cookies = {}
+        cookies_dict = student.antiddos.saved_cookies
         for key, value in cookies.items():
             cookies_dict[key] = value
         return cookies_dict
 
-    def pass_antiddos(self):
+    def pass_antiddos(self, student: Student):
         """
         Pass the anti-ddos page
         """
         log_info("Trying to pass the anti-ddos page")
-        self.antiddos_bypasser.regenerate_cookies()
+        student.antiddos.regenerate_cookies()
         log_info("Anti-ddos page passed")
 
     def login(self, student, allow_retry=True):
@@ -54,18 +56,18 @@ class IntranetApi:
         # Microsoft request
         msoft_resp = requests.get(INTRANET_LOGIN_URL, cookies=self._build_cookies({
             "ESTSAUTHPERSISTENT": student.microsoft_session
-        }), headers=HEADERS, allow_redirects=False)
+        }, student), headers=HEADERS, allow_redirects=False)
 
         if msoft_resp.status_code != 302:
             log_error(f"Invalid Microsoft session for the student: {student.student_label}")
             raise Exception(f"Invalid Microsoft session for the student: {student.student_label}")
         # Get the "Location" response header
         location = msoft_resp.headers["Location"]
-        intra_resp = requests.get(location, headers=HEADERS, cookies=self._build_cookies({}), allow_redirects=False)
+        intra_resp = requests.get(location, headers=HEADERS, cookies=self._build_cookies({}, student), allow_redirects=False)
 
         if intra_resp.status_code == 503: # Anti-ddos page
             if allow_retry:
-                self.pass_antiddos()
+                self.pass_antiddos(student)
                 return self.login(student, allow_retry=False)
             log_error("AntiDDoS already passed, but still got a 503 error")
             raise Exception("AntiDDoS already passed, but still got a 503 error")
@@ -73,6 +75,9 @@ class IntranetApi:
             log_error(f"Failed to login to Intranet API for the student: {student.student_label}")
             raise IntranetLoginError(f"Failed to login to Intranet API for the student: {student.student_label}")
         # Extract the token from the Set-Cookie header
+        if not "Set-Cookie" in intra_resp.headers:
+            log_error(f"Failed to login to Intranet API for the student: {student.student_label}")
+            raise IntranetLoginError(f"Failed to login to Intranet API for the student: {student.student_label}")
         token = intra_resp.headers["Set-Cookie"].split("user=")[1].split(";")[0]
         student.intra_token = token
         return token
@@ -82,12 +87,12 @@ class IntranetApi:
             self.login(student_obj)
         res = requests.get(f"https://intra.epitech.eu/{url}", headers=HEADERS, cookies=self._build_cookies({
             "user": student_obj.intra_token
-        }), timeout=timeout)
+        }, student_obj), timeout=timeout)
         if res.status_code == 200:
             return res.json()
         if res.status_code == 503:
             if allow_retry:
-                self.pass_antiddos()
+                self.pass_antiddos(student=student_obj)
                 return self.api_request(url, student_obj, allow_retry=False, timeout=timeout)
             raise Exception("Failed to pass the anti-ddos page")
 

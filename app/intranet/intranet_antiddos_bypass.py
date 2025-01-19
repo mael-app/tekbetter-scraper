@@ -24,6 +24,7 @@ class IntranetAntiDDoSBypasser:
         self.cookies = {}
         self.headers = {}
         self.saved_cookies = {}
+
     def extract_cookies_from_response(self, resp):
         for cookie in resp.cookies:
             self.cookies[cookie.name] = cookie.value
