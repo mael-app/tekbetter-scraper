@@ -42,7 +42,7 @@ RUN useradd -m -s /bin/bash scraper && \
 # Set environment variables
 ENV PYTHONPATH=/tekbetter \
     PYTHONUNBUFFERED=1 \
-    SCRAPERS_CONFIG_FILE=/tekbetter/scrapers.json
+    SCRAPER_CONFIG_FILE=/tekbetter/scrapers.json
 
 # Switch to non-root user
 USER scraper
