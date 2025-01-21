@@ -2,6 +2,8 @@ import json
 import os
 
 import requests
+
+from app.intranet.intranet_antiddos_bypass import IntranetAntiDDoSBypasser
 from app.logger import log_info, log_error, log_warning
 from app.model.Student import Student
 
@@ -9,7 +11,9 @@ def get_or_create(token, students):
     for student in students:
         if student.tekbetter_token == token:
             return student, False
-    return Student(), True
+    s = Student()
+    s.antiddos = IntranetAntiDDoSBypasser()
+    return s, True
 
 def load_configuration(main):
     json_data = {}

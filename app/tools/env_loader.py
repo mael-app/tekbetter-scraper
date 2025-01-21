@@ -17,17 +17,17 @@ def check_env_variables():
     if os.getenv("SCRAPER_MODE") == "public" and not os.getenv("PUBLIC_SCRAPER_TOKEN"):
         log_error("Missing PUBLIC_SCRAPER_TOKEN environment variable")
         valid = False
-    if not os.getenv("SCRAPER_CONFIG_FILE"):
-        log_error("Missing SCRAPER_CONFIG_FILE environment variable")
-        valid = False
-    else:
-        if not os.path.exists(os.getenv("SCRAPER_CONFIG_FILE")):
+    if os.getenv("SCRAPER_MODE") == "private":
+        if not os.getenv("SCRAPER_CONFIG_FILE"):
+            log_error("Missing SCRAPER_CONFIG_FILE environment variable")
+            valid = False
+        elif not os.path.exists(os.getenv("SCRAPER_CONFIG_FILE")):
             log_error("Invalid SCRAPER_CONFIG_FILE path")
             valid = False
-        if not os.access(os.getenv("SCRAPER_CONFIG_FILE"), os.R_OK):
+        elif not os.access(os.getenv("SCRAPER_CONFIG_FILE"), os.R_OK):
             log_error(f"{os.getenv('SCRAPER_CONFIG_FILE')} is not readable")
             valid = False
-        if not os.access(os.getenv("SCRAPER_CONFIG_FILE"), os.W_OK):
+        elif not os.access(os.getenv("SCRAPER_CONFIG_FILE"), os.W_OK):
             log_error(f"{os.getenv('SCRAPER_CONFIG_FILE')} is not writable")
             valid = False
     return valid

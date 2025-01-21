@@ -58,11 +58,11 @@ class IntranetManager:
                 final.append(activity)
         return final
 
-    def fetch_project_slug(self, intra_project_json: dict, student: Student):
-        scolyear = intra_project_json['scolaryear']
-        codemodule = intra_project_json['codemodule']
-        codeinstance = intra_project_json['codeinstance']
-        codeacti = intra_project_json['codeacti']
+    def fetch_project_slug(self, ask_json: dict, student: Student):
+        scolyear = ask_json['year']
+        codemodule = ask_json['module']
+        codeinstance = ask_json['instance']
+        codeacti = ask_json['code_acti']
 
         url = f"module/{scolyear}/{codemodule}/{codeinstance}/{codeacti}/project/?format=json"
 

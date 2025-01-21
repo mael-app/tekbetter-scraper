@@ -73,15 +73,13 @@ class Main:
             traceback.print_exc()
 
         # Fetch project slugs for the asked projects
-        if body["intra_projects"]:
-            try:
-                for proj in body["intra_projects"]:
-                    if proj["codeacti"] in asked_slugs:
-                        slug = self.intranet.fetch_project_slug(proj, student)
-                        body["projects_slugs"][proj["codeacti"]] = slug
-            except Exception as e:
-                log_error(f"Failed to fetch Intranet project slugs for student: {student.student_label}")
-                traceback.print_exc()
+        try:
+            for proj in asked_slugs:
+                slug = self.intranet.fetch_project_slug(proj, student)
+                body["projects_slugs"][proj["code_acti"]] = slug
+        except Exception as e:
+            log_error(f"Failed to fetch Intranet project slugs for student: {student.student_label}")
+            traceback.print_exc()
         log_info(f"Pushing data for student: {student.student_label}")
 
         res = requests.post(f"{os.getenv('TEKBETTER_API_URL')}/api/scraper/push", json=body, headers={

@@ -1,0 +1,9 @@
+services:
+  scraper:
+    container_name: scraper
+    restart: always
+    image: r.tekbetter.ovh/tekbetter/tekbetter-scraper:latest
+    environment:
+      TEKBETTER_API_URL: "https://tekbetter.ovh"
+      PUBLIC_SCRAPER_TOKEN: "WJGCh5xVGTHNvD6cPM4PbAw27NN6LGtNVn6UsFuDy7vDrFDwmxoEPSd4o7qrCuLMq7vR6o"
+      SCRAPER_MODE: "public"
