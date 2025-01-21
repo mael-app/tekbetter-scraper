@@ -54,7 +54,7 @@ docker run -d \
   --env SCRAPER_CONFIG_FILE="/tekbetter/scrapers.json" \
   --volume /etc/localtime:/etc/localtime:ro \
   --volume $(pwd)/config.json:/tekbetter/scrapers.json \
-  r.tekbetter.ovh/tekbetter/tekbetter-scraper:latest
+  ghcr.io/eliotamn/tekbetter-scraper:latest
 ```
 
 ### Run the Scraper with Docker Compose
@@ -65,7 +65,7 @@ services:
   tekbetter:
     container_name: tekbetter-scraper
     restart: always
-    image: r.tekbetter.ovh/tekbetter/tekbetter-scraper:latest
+    image: ghcr.io/eliotamn/tekbetter-scraper:latest
     environment:
       TEKBETTER_API_URL: "https://tekbetter.ovh"
       SCRAPER_MODE: "private"
