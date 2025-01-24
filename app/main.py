@@ -47,7 +47,7 @@ class Main:
             log_error(f"Failed to fetch MyEpitech data for student: {student.student_label}")
             traceback.print_exc()
 
-        start_date = datetime.now() - timedelta(days=365*3)
+        start_date = datetime.now() - timedelta(days=365*5)
         end_date = datetime.now() + timedelta(days=365)
 
         if "fetch_start" in res.json():
