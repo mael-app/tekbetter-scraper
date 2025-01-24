@@ -1,3 +1,4 @@
+import base64
 import os
 import time
 import traceback
@@ -32,6 +33,7 @@ class Main:
             return
         known_tests = res.json()["known_tests"]
         asked_slugs = res.json()["asked_slugs"]
+        asked_pictures = res.json()["asked_pictures"] if "asked_pictures" in res.json() else []
 
         body = {
             "new_moulis": None,
@@ -70,6 +72,14 @@ class Main:
             body["intra_projects"] = self.intranet.fetch_projects(student, start_date, end_date)
         except Exception as e:
             log_error(f"Failed to fetch Intranet projects for student: {student.student_label}")
+            traceback.print_exc()
+        try:
+            body["students_pictures"] = {}
+            for student_login in asked_pictures:
+                picture = self.intranet.fetch_student_picture(student_login, student)
+                body["students_pictures"][student_login] = base64.b64encode(picture).decode("utf-8")
+        except Exception as e:
+            log_error(f"Failed to fetch Intranet student pictures for student: {student.student_label}")
             traceback.print_exc()
 
         # Fetch project slugs for the asked projects

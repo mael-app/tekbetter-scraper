@@ -72,3 +72,15 @@ class IntranetManager:
         if not "slug" in result:
             return None
         return result["slug"]
+
+    def fetch_student_picture(self, student_login: str, student: Student) -> bytes:
+        """
+        Fetch the student picture from the intranet
+        :param student_login:
+        :param student:
+        :return: Image bytes
+        """
+        log_info(f"[INTRA] Fetching student picture for {student_login}")
+        url = f"file/userprofil/profilview/{student_login}.jpg"
+        img_bytes = self.api.api_request(url, student)
+        return img_bytes

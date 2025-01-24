@@ -89,7 +89,12 @@ class IntranetApi:
             "user": student_obj.intra_token
         }, student_obj), timeout=timeout)
         if res.status_code == 200:
-            return res.json()
+            if "application/json" in res.headers["Content-Type"]:
+                return res.json()
+            if res.headers["Content-Type"] == "image/jpeg":
+                # return image bytes
+                return res.content
+            raise Exception("Invalid content type")
         if res.status_code == 503:
             if allow_retry:
                 self.pass_antiddos(student=student_obj)
