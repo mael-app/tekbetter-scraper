@@ -31,18 +31,32 @@ class Main:
             log_error(f"Failed to fetch known tests for student: {student.student_label}")
             return
         known_tests = res.json()["known_tests"]
+        known_modules = res.json()["known_modules"] if "known_modules" in res.json() else []
         asked_slugs = res.json()["asked_slugs"]
+
 
         body = {
             "new_moulis": None,
             "intra_profile": None,
             "intra_planning": None,
             "intra_projects": None,
+            "modules": None,
             "projects_slugs": {},
         }
 
         try:
             body["new_moulis"] = self.myepitech.fetch_student(student, known_tests=known_tests)
+        except Exception as e:
+            log_error(f"Failed to fetch MyEpitech data for student: {student.student_label}")
+            traceback.print_exc()
+
+        try:
+            all_modules = self.intranet.fetch_modules_list(student)
+            for module in all_modules:
+                if len([m for m in known_modules if m == module["code"]]) == 0:
+                    if body["modules"] is None:
+                        body["modules"] = []
+                    body["modules"].append(self.intranet.fetch_module(module["scolaryear"], module["code"], module["codeinstance"], student))
         except Exception as e:
             log_error(f"Failed to fetch MyEpitech data for student: {student.student_label}")
             traceback.print_exc()
