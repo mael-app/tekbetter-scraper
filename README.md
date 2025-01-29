@@ -73,6 +73,13 @@ services:
     volumes:
       - /etc/localtime:/etc/localtime:ro
       - ./config.json:/tekbetter/scrapers.json
+
+  # Optional: Watchtower to automatically update the scraper if a new version is available
+  watchtower:
+    image: containrrr/watchtower
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    command: --interval 120
 ```
 
 ## Environment variables
