@@ -1,3 +1,4 @@
+import re
 from datetime import datetime
 
 from app.intranet.intranet_api import IntranetApi
@@ -84,3 +85,49 @@ class IntranetManager:
         url = f"file/userprofil/profilview/{student_login}.jpg"
         img_bytes = self.api.api_request(url, student)
         return img_bytes
+
+
+    def fetch_modules_list(self, student: Student):
+        url = f"/course/filter?format=json"
+        log_info(f"[INTRA] Fetching modules list")
+        res = self.api.api_request(url, student)
+        ret = []
+        for m in res:
+            ret.append({
+                "code": m["code"],
+                "scolaryear": m["scolaryear"],
+                "codeinstance": m["codeinstance"],
+            })
+        return ret
+
+    def fetch_module(self, scolar_year: int, code_module: str, code_instance: str, student: Student):
+        url = f"module/{scolar_year}/{code_module}/{code_instance}/?format=json"
+        log_info(f"[INTRA] Fetching module {code_module}")
+
+        module_data = self.api.api_request(url, student)
+
+        module_data["tb_is_roadblock"] = False
+        module_data["tb_roadblock_submodules"] = None
+        module_data["tb_required_credits"] = None
+
+        if "-EPI-" in module_data["codemodule"]:
+            # This module is a roadblock
+            road_submodules = []
+
+            for row in module_data["description"].split("\n"):
+                # extract the code of the submodule, who have the format like "L-LLL-NNN" where L is a letter and N is a number
+                mod_patten = re.compile(r"[A-Z]-[A-Z]{3}-\d{3}")
+                match = mod_patten.search(row)
+                if match:
+                    road_submodules.append(match.group())
+
+                # As a reminder, to validate this unit you must acquire at least 3 credits with the units listed below:
+                cred_pattern = re.compile(r"validate this unit you must acquire at least (\d+) credits")
+                match = cred_pattern.search(row)
+                if match:
+                    module_data["tb_required_credits"] = int(match.group(1))
+
+            module_data["tb_roadblock_submodules"] = road_submodules
+            module_data["tb_is_roadblock"] = len(road_submodules) > 0 and module_data["tb_required_credits"] is not None
+        return module_data
+
