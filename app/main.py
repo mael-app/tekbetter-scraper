@@ -55,10 +55,12 @@ class Main:
         try:
             all_modules = self.intranet.fetch_modules_list(student)
             for module in all_modules:
-                if len([m for m in known_modules if m == module["code"]]) == 0:
+                if len([m for m in known_modules if m == module["id"]]) == 0:
                     if body["modules"] is None:
                         body["modules"] = []
-                    body["modules"].append(self.intranet.fetch_module(module["scolaryear"], module["code"], module["codeinstance"], student))
+                    m = self.intranet.fetch_module(module["scolaryear"], module["code"], module["codeinstance"], student)
+                    m["id"] = module["id"] if "id" in module else None
+                    body["modules"].append(m)
         except Exception as e:
             log_error(f"Failed to fetch MyEpitech data for student: {student.student_label}")
             traceback.print_exc()

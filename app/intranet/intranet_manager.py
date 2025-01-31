@@ -95,6 +95,7 @@ class IntranetManager:
         for m in res:
             ret.append({
                 "code": m["code"],
+                "id": int(m["id"]) if "id" in m else None,
                 "scolaryear": m["scolaryear"],
                 "codeinstance": m["codeinstance"],
             })
