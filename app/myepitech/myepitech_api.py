@@ -1,7 +1,7 @@
 import requests
 
 from app.config import MYEPITECH_LOGIN_URL
-from app.model.Student import Student
+from app.model.Student import Student, TaskStatus, TaskType
 
 
 class MyEpitechLoginError(Exception):
@@ -29,12 +29,14 @@ class MyEpitechApi:
             "ESTSAUTHPERSISTENT": student.microsoft_session
         })
         if request.status_code != 200:
+            student.send_task_status({TaskType.AUTH: TaskStatus.ERROR})
             raise Exception("Failed to create myepitech session")
         # Get the "Location" response header
         location = request.url
         # Extract the token from the location
         token = location.split("id_token=")[1].split("&")[0]
         student.myepitech_token = token
+        student.send_task_status({TaskType.AUTH: TaskStatus.SUCCESS})
         return token
 
     def api_request(self, url, student_obj: Student, allow_retry=True):

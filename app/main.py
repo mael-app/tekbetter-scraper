@@ -1,7 +1,6 @@
 import base64
 import os
 import time
-import traceback
 from datetime import datetime, timedelta
 import requests
 from app.intranet.intranet_manager import IntranetManager
@@ -9,6 +8,9 @@ from app.logger import log_info, log_error, log_warning
 from app.myepitech.myepitech_manager import MyEpitechManager
 from app.tools.config_loader import load_configuration
 from app.tools.env_loader import check_env_variables
+from app.model.Student import Student, TaskStatus, TaskType
+
+
 
 class Main:
     def __init__(self):
@@ -31,6 +33,9 @@ class Main:
         if res.status_code != 200:
             log_error(f"Failed to fetch known tests for student: {student.student_label}")
             return
+
+        student.send_task_status({TaskType.SCRAPING: TaskStatus.LOADING})
+
         known_tests = res.json()["known_tests"]
         known_modules = res.json()["known_modules"] if "known_modules" in res.json() else []
         asked_slugs = res.json()["asked_slugs"]
@@ -47,12 +52,15 @@ class Main:
         }
 
         try:
+            student.send_task_status({TaskType.MOULI: TaskStatus.LOADING})
             body["new_moulis"] = self.myepitech.fetch_student(student, known_tests=known_tests)
+            student.send_task_status({TaskType.MOULI: TaskStatus.SUCCESS})
         except Exception as e:
             log_error(f"Failed to fetch MyEpitech data for student: {student.student_label}")
-            traceback.print_exc()
+            student.send_task_status({TaskType.MOULI: TaskStatus.ERROR})
 
         try:
+            student.send_task_status({TaskType.MODULES: TaskStatus.LOADING})
             all_modules = self.intranet.fetch_modules_list(student)
             for module in all_modules:
                 if len([m for m in known_modules if m == module["id"]]) == 0:
@@ -61,9 +69,10 @@ class Main:
                     m = self.intranet.fetch_module(module["scolaryear"], module["code"], module["codeinstance"], student)
                     m["id"] = module["id"] if "id" in module else None
                     body["modules"].append(m)
+            student.send_task_status({TaskType.MODULES: TaskStatus.SUCCESS})
         except Exception as e:
-            log_error(f"Failed to fetch MyEpitech data for student: {student.student_label}")
-            traceback.print_exc()
+            student.send_task_status({TaskType.MODULES: TaskStatus.ERROR})
+            log_error(f"Failed to fetch Modules data for student: {student.student_label}")
 
         start_date = datetime.now() - timedelta(days=365*5)
         end_date = datetime.now() + timedelta(days=365)
@@ -75,37 +84,48 @@ class Main:
 
 
         try:
+            student.send_task_status({TaskType.PROFILE: TaskStatus.LOADING})
             body["intra_profile"] = self.intranet.fetch_student(student)
+            student.send_task_status({TaskType.PROFILE: TaskStatus.SUCCESS})
         except Exception as e:
             log_error(f"Failed to fetch Intranet data for student: {student.student_label}")
-            traceback.print_exc()
         try:
+            student.send_task_status({TaskType.PLANNING: TaskStatus.LOADING})
             body["intra_planning"] = self.intranet.fetch_planning(student, start_date, end_date)
+            student.send_task_status({TaskType.PLANNING: TaskStatus.SUCCESS})
         except Exception as e:
             log_error(f"Failed to fetch Intranet planning for student: {student.student_label}")
-            traceback.print_exc()
         try:
+            student.send_task_status({TaskType.PROJECTS: TaskStatus.LOADING})
             body["intra_projects"] = self.intranet.fetch_projects(student, start_date, end_date)
+            student.send_task_status({TaskType.PROJECTS: TaskStatus.SUCCESS})
         except Exception as e:
+            student.send_task_status({TaskType.PROJECTS: TaskStatus.ERROR})
             log_error(f"Failed to fetch Intranet projects for student: {student.student_label}")
-            traceback.print_exc()
         try:
             body["students_pictures"] = {}
+            if len(asked_pictures) > 0:
+                student.send_task_status({TaskType.AVATAR: TaskStatus.LOADING})
             for student_login in asked_pictures:
                 picture = self.intranet.fetch_student_picture(student_login, student)
                 body["students_pictures"][student_login] = base64.b64encode(picture).decode("utf-8")
+            student.send_task_status({TaskType.AVATAR: TaskStatus.SUCCESS})
         except Exception as e:
+            student.send_task_status({TaskType.AVATAR: TaskStatus.ERROR})
             log_error(f"Failed to fetch Intranet student pictures for student: {student.student_label}")
-            traceback.print_exc()
 
         # Fetch project slugs for the asked projects
         try:
+            if len(asked_slugs) > 0:
+                student.send_task_status({TaskType.SLUGS: TaskStatus.LOADING})
             for proj in asked_slugs:
                 slug = self.intranet.fetch_project_slug(proj, student)
                 body["projects_slugs"][proj["code_acti"]] = slug
+            student.send_task_status({TaskType.SLUGS: TaskStatus.SUCCESS})
         except Exception as e:
             log_error(f"Failed to fetch Intranet project slugs for student: {student.student_label}")
-            traceback.print_exc()
+            log_error(str(e))
+            student.send_task_status({TaskType.SLUGS: TaskStatus.ERROR})
         log_info(f"Pushing data for student: {student.student_label}")
 
         res = requests.post(f"{os.getenv('TEKBETTER_API_URL')}/api/scraper/push", json=body, headers={
@@ -114,8 +134,11 @@ class Main:
 
         if res.status_code != 200:
             log_error(f"Failed to push data for student: {student.student_label}")
+            student.send_task_status({TaskType.SCRAPING: TaskStatus.ERROR})
             return
         log_info(f"Data pushed for student: {student.student_label}")
+        student.send_task_status({TaskType.SCRAPING: TaskStatus.SUCCESS})
+
 
     def sync_passage(self):
         for student in self.students:

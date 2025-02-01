@@ -3,7 +3,7 @@ import requests
 from app.config import INTRANET_LOGIN_URL, USER_AGENT
 from app.intranet.intranet_antiddos_bypass import IntranetAntiDDoSBypasser
 from app.logger import log_info, log_error
-from app.model.Student import Student
+from app.model.Student import Student, TaskType, TaskStatus
 
 
 class IntranetLoginError(Exception):
@@ -60,6 +60,7 @@ class IntranetApi:
 
         if msoft_resp.status_code != 302:
             log_error(f"Invalid Microsoft session for the student: {student.student_label}")
+            student.send_task_status({TaskType.AUTH: TaskStatus.ERROR})
             raise Exception(f"Invalid Microsoft session for the student: {student.student_label}")
         # Get the "Location" response header
         location = msoft_resp.headers["Location"]
@@ -80,6 +81,7 @@ class IntranetApi:
             raise IntranetLoginError(f"Failed to login to Intranet API for the student: {student.student_label}")
         token = intra_resp.headers["Set-Cookie"].split("user=")[1].split(";")[0]
         student.intra_token = token
+        student.send_task_status({TaskType.AUTH: TaskStatus.SUCCESS})
         return token
 
     def api_request(self, url, student_obj: Student, allow_retry=True, timeout=60):
