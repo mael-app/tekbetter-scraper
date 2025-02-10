@@ -111,7 +111,7 @@ class IntranetManager:
         module_data["tb_roadblock_submodules"] = None
         module_data["tb_required_credits"] = None
 
-        if "-EPI-" in module_data["codemodule"]:
+        if "-EPI-" in module_data["codemodule"] and "description" in module_data and module_data["description"]:
             # This module is a roadblock
             road_submodules = []
 
