@@ -32,6 +32,10 @@ class IntranetManager:
             for event in res:
                 if "calendar_type" in event and event["calendar_type"] == "perso":
                     continue
+                if not "rdv_indiv_registered" in event and not "rdv_group_registered" in event:
+                    final.append(event)
+                    continue
+
                 if not event['event_registered'] in ['present', 'registered'] and (event['rdv_indiv_registered'] is None and event['rdv_group_registered'] is None):
                     continue # Skip events without registered students
                 final.append(event)
@@ -131,4 +135,3 @@ class IntranetManager:
             module_data["tb_roadblock_submodules"] = road_submodules
             module_data["tb_is_roadblock"] = len(road_submodules) > 0 and module_data["tb_required_credits"] is not None
         return module_data
-
