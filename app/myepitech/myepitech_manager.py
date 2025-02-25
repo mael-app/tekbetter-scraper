@@ -9,6 +9,7 @@ class LatestTest:
     last_id: int
     project_slug: str
     project_module: str
+    mates_logins: [str]
     year: int
 
 class MyEpitechManager:
@@ -74,6 +75,8 @@ class MyEpitechManager:
             test.last_id = project["results"]["testRunId"]
             test.project_slug = project["project"]["slug"]
             test.project_module = project["project"]["module"]["code"]
+            test.mates_logins = project["results"]["logins"] if "logins" in project["results"] else []
+            test.mates_logins = [login for login in test.mates_logins if login != student_obj.student_label]
             test.year = year
             obj_tests.append(test)
         return obj_tests
@@ -88,10 +91,11 @@ class MyEpitechManager:
             test.last_id = project["results"]["testRunId"]
             test.project_slug = project["project"]["slug"]
             test.project_module = project["project"]["module"]["code"]
+            test.mates_logins = project["results"]["logins"] if "logins" in project["results"] else []
+            test.mates_logins = [login for login in test.mates_logins if login != student.student_label]
             test.year = year
             obj_tests.append(test)
         return obj_tests
-
 
     def get_test_data(self, student, test: LatestTest):
         log_info(f"Fetching data for test n°{test.last_id} ({test.project_slug}/{test.project_module}/{test.year})")

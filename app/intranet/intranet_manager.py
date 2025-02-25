@@ -36,6 +36,9 @@ class IntranetManager:
                     final.append(event)
                     continue
 
+                if "register_student" in event and event["register_student"] is not None:
+                    final.append(event)
+                    continue
                 if not event['event_registered'] in ['present', 'registered'] and (event['rdv_indiv_registered'] is None and event['rdv_group_registered'] is None):
                     continue # Skip events without registered students
                 final.append(event)
