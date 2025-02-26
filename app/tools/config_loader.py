@@ -68,4 +68,12 @@ def load_configuration(main):
         if len([s for s in json_data["students"] if s["tekbetter_token"] == student.tekbetter_token]) == 0:
             main.students.remove(student)
     log_info("Config reload successful: " + str(len(main.students)) + " students loaded")
+
+
+    if "intervals" in json_data:
+        for key in json_data["intervals"]:
+            if key not in main["intervals"]:
+                log_warning(f"Unknown interval key: {key}")
+                continue
+            main.intervals[key] = json_data["intervals"][key]
     return True

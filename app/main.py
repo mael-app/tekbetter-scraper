@@ -10,8 +10,6 @@ from app.tools.config_loader import load_configuration
 from app.tools.env_loader import check_env_variables
 from app.model.Student import Student, TaskStatus, TaskType
 
-
-
 class Main:
     def __init__(self):
         log_info("Welcome to the TekBetter scraper")
@@ -21,15 +19,26 @@ class Main:
 
         self.myepitech = MyEpitechManager()
         self.intranet = IntranetManager()
+        self.intervals = {
+            "moulinettes": 25,
+            "modules": 25,
+            "profile": 25,
+            "planning": 25,
+            "projects": 25,
+            "avatar": 25,
+            "slugs": 25,
+        }
 
         if not check_env_variables() or not load_configuration(self):
             exit(1)
+
+        for student in self.students:
+            student.main = self
 
     def sync_student(self, student):
         res = requests.get(f"{os.getenv('TEKBETTER_API_URL')}/api/scraper/infos", headers={
             "Authorization": f"Bearer {student.tekbetter_token}"
         })
-
         if res.status_code != 200:
             log_error(f"Failed to fetch known tests for student: {student.student_label}")
             return
@@ -51,57 +60,21 @@ class Main:
             "projects_slugs": {},
         }
 
-        try:
-            student.send_task_status({TaskType.MOULI: TaskStatus.LOADING})
-            body["new_moulis"] = self.myepitech.fetch_student(student, known_tests=known_tests)
-            student.send_task_status({TaskType.MOULI: TaskStatus.SUCCESS})
-        except Exception as e:
-            log_error(f"Failed to fetch MyEpitech data for student: {student.student_label}")
-            student.send_task_status({TaskType.MOULI: TaskStatus.ERROR})
 
-        try:
-            student.send_task_status({TaskType.MODULES: TaskStatus.LOADING})
-            all_modules = self.intranet.fetch_modules_list(student)
-            for module in all_modules:
-                if len([m for m in known_modules if m == module["id"]]) == 0:
-                    if body["modules"] is None:
-                        body["modules"] = []
-                    m = self.intranet.fetch_module(module["scolaryear"], module["code"], module["codeinstance"], student)
-                    m["id"] = module["id"] if "id" in module else None
-                    body["modules"].append(m)
-            student.send_task_status({TaskType.MODULES: TaskStatus.SUCCESS})
-        except Exception as e:
-            student.send_task_status({TaskType.MODULES: TaskStatus.ERROR})
-            log_error(f"Failed to fetch Modules data for student: {student.student_label}")
+        body["new_moulis"] = student.scrape_moulinettes(known_tests)
+        body["modules"] = student.scrape_modules(known_modules)
 
         start_date = datetime.now() - timedelta(days=365*5)
         end_date = datetime.now() + timedelta(days=365)
-
         if "fetch_start" in res.json():
             start_date = datetime.strptime(res.json()["fetch_start"], "%Y-%m-%d")
         if "fetch_end" in res.json():
             end_date = datetime.strptime(res.json()["fetch_end"], "%Y-%m-%d")
 
 
-        try:
-            student.send_task_status({TaskType.PROFILE: TaskStatus.LOADING})
-            body["intra_profile"] = self.intranet.fetch_student(student)
-            student.send_task_status({TaskType.PROFILE: TaskStatus.SUCCESS})
-        except Exception as e:
-            log_error(f"Failed to fetch Intranet data for student: {student.student_label}")
-        try:
-            student.send_task_status({TaskType.PLANNING: TaskStatus.LOADING})
-            body["intra_planning"] = self.intranet.fetch_planning(student, start_date, end_date)
-            student.send_task_status({TaskType.PLANNING: TaskStatus.SUCCESS})
-        except Exception as e:
-            log_error(f"Failed to fetch Intranet planning for student: {student.student_label}")
-        try:
-            student.send_task_status({TaskType.PROJECTS: TaskStatus.LOADING})
-            body["intra_projects"] = self.intranet.fetch_projects(student, start_date, end_date)
-            student.send_task_status({TaskType.PROJECTS: TaskStatus.SUCCESS})
-        except Exception as e:
-            student.send_task_status({TaskType.PROJECTS: TaskStatus.ERROR})
-            log_error(f"Failed to fetch Intranet projects for student: {student.student_label}")
+        body["intra_profile"] = self.intranet.fetch_student(student)
+        body["intra_planning"] = self.intranet.fetch_planning(student, start_date, end_date)
+
         try:
             body["students_pictures"] = {}
             if len(asked_pictures) > 0:
