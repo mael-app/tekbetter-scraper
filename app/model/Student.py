@@ -3,6 +3,7 @@ import os
 import time
 import traceback
 from datetime import datetime, timedelta
+from inspect import trace
 
 from app.intranet.intranet_antiddos_bypass import IntranetAntiDDoSBypasser
 import requests
@@ -38,6 +39,7 @@ class Student:
     antiddos: IntranetAntiDDoSBypasser = None
     main: None
     last_scrapes = {}
+    last_scrape_start = 0
     is_scraping = False
     last_failed_auth = 0
 
@@ -64,6 +66,7 @@ class Student:
 
     def scrape_now(self):
         try:
+            self.last_scrape_start = time.time() # Important: used for the thread-count limiter in main.py
             if time.time() - self.last_failed_auth < 60 * 5: # Disable scraping if last auth failed less than 5 minutes ago
                 return
             if not self.one_need_scrape():
@@ -167,8 +170,10 @@ class Student:
             result = self.main.myepitech.fetch_student(self, known_tests=known_tests)
             self.send_task_status({TaskType.MOULI: TaskStatus.SUCCESS})
         except Exception as e:
+            traceback.print_exc()
             self.err_scrap(f"Failed to fetch MyEpitech data.")
             self.send_task_status({TaskType.MOULI: TaskStatus.ERROR})
+
         self.save_scrape(TaskType.MOULI)
         return result
 

@@ -1,3 +1,4 @@
+import os
 import threading
 import time
 import traceback
@@ -33,7 +34,19 @@ class Main:
             student.main = self
 
     def sync_passage(self):
-        for student in [s for s in self.students if s is not None and not s.is_scraping]:
+        students = [s for s in self.students if s is not None]
+        # Remove student who is currently scraping
+        scraping_count = len([s for s in students if s.is_scraping])
+        students = [s for s in students if not s.is_scraping]
+        # sort by student.get_last_scrape() to get olders first
+        students.sort(key=lambda x: x.last_scrape_start)
+        max_threads = int(os.getenv("MAX_THREADS", 4))
+        to_scrape_count = max_threads - scraping_count
+        if to_scrape_count <= 0:
+            return
+        # get the "to_scrape_count's users
+        to_scrape = students[:to_scrape_count]
+        for student in to_scrape:
             thr = threading.Thread(target=student.scrape_now)
             thr.start()
             self.threads.append(thr)
@@ -47,7 +60,7 @@ if __name__ == "__main__":
     try:
         while True:
             try:
-                time.sleep(5)
+                time.sleep(1)
                 main.sync_passage()
 
                 if last_config_update + timedelta(minutes=CONFIG_RELOAD_INTERVAL) < datetime.now():
