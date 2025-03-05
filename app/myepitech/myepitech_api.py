@@ -34,6 +34,9 @@ class MyEpitechApi:
         # Get the "Location" response header
         location = request.url
         # Extract the token from the location
+        if not "id_token=" in location:
+            student.send_task_status({TaskType.MOULI: TaskStatus.ERROR})
+            raise MyEpitechLoginError("Failed to login to MyEpitech API")
         token = location.split("id_token=")[1].split("&")[0]
         student.myepitech_token = token
         student.send_task_status({TaskType.AUTH: TaskStatus.SUCCESS})
