@@ -2,9 +2,7 @@ import re
 from datetime import datetime
 
 from app.intranet.intranet_api import IntranetApi
-from app.logger import log_info
 from app.model.Student import Student
-from app.myepitech.myepitech_api import MyEpitechApi
 from app.tools.date_spliter import split_dates
 
 
@@ -13,11 +11,11 @@ class IntranetManager:
         self.api = IntranetApi()
 
     def fetch_student(self, student: Student):
-        log_info(f"[INTRA] Fetching student profile {student.student_label}")
+        student.log_scrap(f"[INTRA] Fetching student profile")
         return self.api.api_request("user/?format=json", student)
 
     def fetch_planning(self, student: Student, start_date: datetime, end_date: datetime):
-        log_info(f"[INTRA] Fetching student planning for {student.student_label}")
+        student.log_scrap(f"[INTRA] Fetching student planning")
         start_str = start_date.strftime("%Y-%m-%d")
         end_str = end_date.strftime("%Y-%m-%d")
 
@@ -26,7 +24,7 @@ class IntranetManager:
         dates = split_dates(start_str, end_str, 70)
 
         for (s_start, s_end )in dates:
-            log_info(f"[INTRA] Fetching student planning for {student.student_label} from {s_start} to {s_end}")
+            student.log_scrap(f"[INTRA] Fetching student planning from {s_start} to {s_end}")
             res =  self.api.api_request(f"planning/load?start={s_start}&end={s_end}&format=json", student)
 
             for event in res:
@@ -46,7 +44,7 @@ class IntranetManager:
         return final
 
     def fetch_projects(self, student: Student, start_date: datetime, end_date: datetime):
-        log_info(f"[INTRA] Fetching student projects for {student.student_label}")
+        student.log_scrap(f"[INTRA] Fetching student projects")
         start_str = start_date.strftime("%Y-%m-%d")
         end_str = end_date.strftime("%Y-%m-%d")
 
@@ -55,7 +53,7 @@ class IntranetManager:
         dates = split_dates(start_str, end_str, 70)
 
         for (s_start, s_end )in dates:
-            log_info(f"[INTRA] Fetching student projects for {student.student_label} from {s_start} to {s_end}")
+            student.log_scrap(f"[INTRA] Fetching student projects from {s_start} to {s_end}")
             res = self.api.api_request(f"module/board/?start={s_start}&end={s_end}&format=json", student)
 
             for activity in res:
@@ -74,7 +72,7 @@ class IntranetManager:
 
         url = f"module/{scolyear}/{codemodule}/{codeinstance}/{codeacti}/project/?format=json"
 
-        log_info(f"[INTRA] Fetching project slug for {codeacti}")
+        student.log_scrap(f"[INTRA] Fetching project slug for {codeacti}")
         result =  self.api.api_request(url, student)
 
         if not "slug" in result:
@@ -88,7 +86,7 @@ class IntranetManager:
         :param student:
         :return: Image bytes
         """
-        log_info(f"[INTRA] Fetching student picture for {student_login}")
+        student.log_scrap(f"[INTRA] Fetching student picture")
         url = f"file/userprofil/profilview/{student_login}.jpg"
         img_bytes = self.api.api_request(url, student)
         return img_bytes
@@ -96,7 +94,7 @@ class IntranetManager:
 
     def fetch_modules_list(self, student: Student):
         url = f"/course/filter?format=json"
-        log_info(f"[INTRA] Fetching modules list")
+        student.log_scrap(f"[INTRA] Fetching modules list")
         res = self.api.api_request(url, student)
         ret = []
         for m in res:
@@ -110,7 +108,7 @@ class IntranetManager:
 
     def fetch_module(self, scolar_year: int, code_module: str, code_instance: str, student: Student):
         url = f"module/{scolar_year}/{code_module}/{code_instance}/?format=json"
-        log_info(f"[INTRA] Fetching module {code_module}")
+        student.log_scrap(f"[INTRA] Fetching module {code_module}")
 
         module_data = self.api.api_request(url, student)
 

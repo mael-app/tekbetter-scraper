@@ -36,7 +36,7 @@ class IntranetAntiDDoSBypasser:
                 self.saved_cookies = cookies
                 return cookies
             except Exception as e:
-                print(e)
+                pass
         raise Exception("Failed to regenerate anti-ddos cookies")
 
     def try_pass(self):

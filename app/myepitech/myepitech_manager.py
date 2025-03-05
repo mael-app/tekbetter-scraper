@@ -1,6 +1,4 @@
 from datetime import datetime
-
-from app.logger import log_info
 from app.model.Student import Student
 from app.myepitech.myepitech_api import MyEpitechApi
 
@@ -18,7 +16,7 @@ class MyEpitechManager:
 
 
     def fetch_student(self, student: Student, known_tests: [int]):
-        log_info(f"[MYEPITECH] Fetching student profile {student.student_label}")
+        student.log_scrap("[MYEPITECH] Fetching student moulinettes")
         current_year = datetime.now().year
         years = [current_year - 3, current_year - 2, current_year -1, current_year]
         new_tests = {}
@@ -98,6 +96,6 @@ class MyEpitechManager:
         return obj_tests
 
     def get_test_data(self, student, test: LatestTest):
-        log_info(f"Fetching data for test n°{test.last_id} ({test.project_slug}/{test.project_module}/{test.year})")
+        student.log_scrap(f"Fetching data for test n°{test.last_id} ({test.project_slug}/{test.project_module}/{test.year})")
         test_data = self.api.api_request(f"me/details/{test.last_id}", student)
         return test_data

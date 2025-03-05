@@ -1,11 +1,13 @@
 import json
 import os
+import time
 
 import requests
 
 from app.intranet.intranet_antiddos_bypass import IntranetAntiDDoSBypasser
 from app.logger import log_info, log_error, log_warning
-from app.model.Student import Student
+from app.model.Student import Student, TaskType
+
 
 def get_or_create(token, students):
     for student in students:
@@ -14,6 +16,7 @@ def get_or_create(token, students):
     s = Student()
     s.antiddos = IntranetAntiDDoSBypasser()
     return s, True
+
 
 def load_configuration(main):
     json_data = {}
@@ -39,9 +42,10 @@ def load_configuration(main):
             return False
         json_data = res.json()
 
-    # Create config keys if they don't exist
-    if not "student_interval" in json_data:
-        json_data["student_interval"] = 60
+    if "student_interval" in json_data:
+        log_warning("Config warning: \"student_interval\" key is deprecated, use \"intervals\" instead. Please refer to the documentation.")
+        time.sleep(10)
+
     if not "students" in json_data:
         json_data["students"] = []
     for student in json_data["students"]:
@@ -50,8 +54,6 @@ def load_configuration(main):
         if not "tekbetter_token" in student:
             student["tekbetter_token"] = ""
 
-    # --- Apply the configuration ---
-    main.student_interval = json_data["student_interval"]
 
     # Add new students to the list
     for student in json_data["students"]:
@@ -62,6 +64,7 @@ def load_configuration(main):
             student_obj.student_label = student_obj.tekbetter_token.split("_")[0]
         if created:
             main.students.append(student_obj)
+        student_obj.main = main
 
     # Remove students that are not in the config anymore
     for student in main.students:
@@ -69,11 +72,18 @@ def load_configuration(main):
             main.students.remove(student)
     log_info("Config reload successful: " + str(len(main.students)) + " students loaded")
 
+    translations = {
+        "moulinettes": TaskType.MOULI,
+        "modules": TaskType.MODULES,
+        "profile": TaskType.PROFILE,
+        "planning": TaskType.PLANNING,
+        "projects": TaskType.PROJECTS,
+    }
 
     if "intervals" in json_data:
         for key in json_data["intervals"]:
-            if key not in main["intervals"]:
+            if key not in translations:
                 log_warning(f"Unknown interval key: {key}")
                 continue
-            main.intervals[key] = json_data["intervals"][key]
+            main.intervals[translations[key]] = json_data["intervals"][key]
     return True

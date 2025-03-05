@@ -1,3 +1,5 @@
+import time
+
 import requests
 
 from app.config import INTRANET_LOGIN_URL, USER_AGENT
@@ -59,7 +61,8 @@ class IntranetApi:
         }, student), headers=HEADERS, allow_redirects=False)
 
         if msoft_resp.status_code != 302:
-            log_error(f"Invalid Microsoft session for the student: {student.student_label}")
+            student.err_scrap(f"Invalid Microsoft session for the student.")
+            student.last_failed_auth = time.time()
             student.send_task_status({TaskType.AUTH: TaskStatus.ERROR})
             raise Exception(f"Invalid Microsoft session for the student: {student.student_label}")
         # Get the "Location" response header
@@ -70,10 +73,11 @@ class IntranetApi:
             if allow_retry:
                 self.pass_antiddos(student)
                 return self.login(student, allow_retry=False)
-            log_error("AntiDDoS already passed, but still got a 503 error")
+            student.err_scrap("AntiDDoS already passed, but still got a 503 error")
+            student.last_failed_auth = time.time()
             raise Exception("AntiDDoS already passed, but still got a 503 error")
         if intra_resp.status_code not in [204, 302]:
-            log_error(f"Failed to login to Intranet API for the student: {student.student_label}")
+            student.err_scrap(f"Failed to login to Intranet API for the student: {student.student_label}")
             raise IntranetLoginError(f"Failed to login to Intranet API for the student: {student.student_label}")
         # Extract the token from the Set-Cookie header
         if not "Set-Cookie" in intra_resp.headers:
