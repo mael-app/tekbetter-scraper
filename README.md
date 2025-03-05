@@ -32,13 +32,20 @@ Below is a sample configuration file (`config.json`) required for the scraper:
 
 ```json
 {
-  "student_interval": 60,
+  "intervals": {
+    "moulinettes": 5,
+    "projects": 60,
+    "planning": 120,
+    "modules": 120,
+    "profile": 120
+  },
   "students": [
     {
       "microsoft_session": "YOUR_MICROSOFT_SESSION_TOKEN_HERE",
       "tekbetter_token": "YOUR_TEKBETTER_TOKEN_HERE"
     }
   ]
+}
 ```
 
 ### Run the Scraper with Docker CLI
