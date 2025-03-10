@@ -28,18 +28,28 @@ class IntranetManager:
             res =  self.api.api_request(f"planning/load?start={s_start}&end={s_end}&format=json", student)
 
             for event in res:
+                # Skip personal events
                 if "calendar_type" in event and event["calendar_type"] == "perso":
                     continue
-                if not "rdv_indiv_registered" in event and not "rdv_group_registered" in event:
+
+                # If the student is self-registered, save it.
+                if "event_registered" in event and event["event_registered"] is not None and event["event_registered"] == True:
                     final.append(event)
                     continue
 
-                if "register_student" in event and event["register_student"] is not None:
+                # If it's an appointment, and the student is registered, save it.
+                if "rdv_indiv_registered" in event and event["rdv_indiv_registered"] is not None:
                     final.append(event)
                     continue
-                if not event['event_registered'] in ['present', 'registered'] and (event['rdv_indiv_registered'] is None and event['rdv_group_registered'] is None):
-                    continue # Skip events without registered students
-                final.append(event)
+
+                # If it's a group appointment, and the student is registered, save it.
+                if "rdv_group_registered" in event and event["rdv_group_registered"] is not None:
+                    final.append(event)
+                    continue
+
+                # if not event['event_registered'] in ['present', 'registered'] and (event['rdv_indiv_registered'] is None and event['rdv_group_registered'] is None):
+                #     continue # Skip events without registered students
+#                final.append(event)
         # Remove duplicates
         return final
 
