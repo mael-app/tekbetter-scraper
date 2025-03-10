@@ -64,12 +64,13 @@ class Student:
     def err_scrap(self, message):
         log_error(f"[{self.student_label}] {message}")
 
+    def is_last_failed(self):
+        return time.time() - self.last_failed_auth < 60 * 5 # Disable scraping if last auth failed less than 5 minutes ago
+
     def scrape_now(self):
         try:
             self.last_scrape_start = time.time() # Important: used for the thread-count limiter in main.py
-            if time.time() - self.last_failed_auth < 60 * 5: # Disable scraping if last auth failed less than 5 minutes ago
-                return
-            if not self.one_need_scrape():
+            if not self.one_need_scrape() or self.is_last_failed():
                 return
             self.is_scraping = True
             self.log_scrap(f"Scraping started.")

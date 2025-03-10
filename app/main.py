@@ -16,7 +16,6 @@ class Main:
         log_info("Welcome to the TekBetter scraper")
         self.students = []
         self.threads = []
-
         self.myepitech = MyEpitechManager()
         self.intranet = IntranetManager()
         self.intervals = {
@@ -33,14 +32,19 @@ class Main:
         for student in self.students:
             student.main = self
 
+    def clean_threads(self):
+        for thread in self.threads:
+           if not thread.is_alive():
+               self.threads.remove(thread)
     def sync_passage(self):
+        self.clean_threads()
         students = [s for s in self.students if s is not None]
         # Remove student who is currently scraping
         scraping_count = len([s for s in students if s.is_scraping])
-        students = [s for s in students if not s.is_scraping]
+        students = [s for s in students if not s.is_scraping and s.one_need_scrape() and not s.is_last_failed()]
         # sort by student.get_last_scrape() to get olders first
         students.sort(key=lambda x: x.last_scrape_start)
-        max_threads = int(os.getenv("MAX_THREADS", 4))
+        max_threads = int(os.getenv("MAX_THREADS", 6))
         to_scrape_count = max_threads - scraping_count
         if to_scrape_count <= 0:
             return
@@ -50,7 +54,6 @@ class Main:
             thr = threading.Thread(target=student.scrape_now)
             thr.start()
             self.threads.append(thr)
-
 
 if __name__ == "__main__":
     main = Main()
