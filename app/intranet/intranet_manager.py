@@ -33,7 +33,7 @@ class IntranetManager:
                     continue
 
                 # If the student is self-registered, save it.
-                if "event_registered" in event and event["event_registered"] is not None and event["event_registered"] == True:
+                if "event_registered" in event and event["event_registered"] is not None and event["event_registered"] in ["present", "registered"]:
                     final.append(event)
                     continue
 
