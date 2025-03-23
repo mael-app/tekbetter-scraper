@@ -179,9 +179,8 @@ class Student:
             self.send_task_status({TaskType.MOULI: TaskStatus.LOADING})
             result = self.main.myepitech.fetch_student(self, known_tests=known_tests)
             self.send_task_status({TaskType.MOULI: TaskStatus.SUCCESS})
-        except Exception:
-            traceback.print_exc()
-            self.err_scrap("Failed to fetch MyEpitech data.")
+        except Exception as e:
+            self.err_scrap("Failed to fetch MyEpitech data : " + str(e))
             self.send_task_status({TaskType.MOULI: TaskStatus.ERROR})
         self.save_scrape(TaskType.MOULI)
         return result
