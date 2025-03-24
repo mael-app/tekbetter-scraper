@@ -44,7 +44,7 @@ class Main:
         students = [s for s in students if not s.is_scraping and s.one_need_scrape() and not s.is_last_failed()]
         # sort by student.get_last_scrape() to get olders first
         students.sort(key=lambda x: x.last_scrape_start)
-        max_threads = int(os.getenv("MAX_THREADS", 6))
+        max_threads = int(os.getenv("MAX_THREADS", 10))
         to_scrape_count = max_threads - scraping_count
         if to_scrape_count <= 0:
             return
